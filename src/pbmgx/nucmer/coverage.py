@@ -28,9 +28,11 @@ def calculate_coverage_fraction( gap_dict, ref_lengths ):
         print "Covered Gaps: {0}bp ({1:.2%}) from {2} gaps".format(sum(covered),
                                                                    sum(covered)/length,
                                                                    len(covered))
+        print covered
         print "Uncovered Gaps: {0}bp ({1:.2%}) from {2} gaps".format(sum(uncovered),
                                                                      sum(uncovered)/length,
                                                                      len(uncovered))
+        print uncovered
         print "Total Gaps: {0}bp ({1:.2%}) from {2} gaps".format(sum(total),
                                                                  sum(total)/length,
                                                                  len(total))
@@ -87,17 +89,7 @@ def combine_segments( segment_dict ):
         new_segment_dict[reference] = sorted(new_segments)
     return new_segment_dict
 
-def read_ref_segments( coord_file, min_length=MIN_LEN ):
-    segments = {}
-    for hit in NucmerCoordReader( coord_file ):
-        segment = Segment( hit.S1, hit.E1, hit.query )
-        if len(segment) < min_length:
-            continue
-        try:
-            segments[hit.reference].append( segment )
-        except:
-            segments[hit.reference] = [ segment ]
-    return segments
+
 
 def read_fasta_lengths( fasta_file ):
     lengths = {}

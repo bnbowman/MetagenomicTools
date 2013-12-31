@@ -37,6 +37,10 @@ class Segment( object ):
         return min(self.start, self.end)
 
     @property
+    def rightmost(self):
+        return max(self.start, self.end)
+
+    @property
     def forward(self):
         return self._forward
 
@@ -89,3 +93,14 @@ class Segment( object ):
         if self.source == other.source:
             return Segment( start, end, self.source )
         return Segment( start, end )
+
+    def contains(self, other):
+        assert isinstance(other, Segment)
+        if (self.leftmost <= other.leftmost) and \
+           (self.rightmost >= other.rightmost):
+            return True
+        return False
+
+    def is_contained_by(self, other):
+        assert isinstance(other, Segment)
+        return other.contains( self )

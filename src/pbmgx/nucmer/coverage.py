@@ -3,27 +3,68 @@
 __author__ = 'bbowman@pacificbiosciences.com'
 
 from pbmgx.nucmer.coord import NucmerCoordReader
+from pbmgx.nucmer.utils import read_nucmer_hits
 from pbmgx.nucmer.segment import Segment
-from pbcore.io import FastaReader
+from pbmgx.fasta.utils import read_fasta_lengths
 
 MIN_LEN = 10000
+MIN_IDY = 98.0
+MARGIN = 5
 
-def calculate_coverage( coord_file, query_fasta, ref_fasta, min_length=MIN_LEN ):
+def calculate_coverage( coord_file, query_fasta, ref_fasta, min_length=MIN_LEN,
+                                                            min_identity=MIN_IDY,
+                                                            margin=MARGIN ):
     query_lengths = read_fasta_lengths( query_fasta )
     ref_lengths = read_fasta_lengths( ref_fasta )
-    ref_windows = read_ref_segments( coord_file, min_length )
-    print ref_windows
-    segment_dict = combine_segments( ref_windows )
-    gap_dict = find_coverage_gaps( segment_dict, ref_lengths )
+    nucmer_hits = read_nucmer_hits( coord_file, min_length, min_identity )
+    segment_dict = nucmer_hits_to_segments( nucmer_hits )
     print segment_dict
+    segment_dict = combine_segments( segment_dict )
+    print segment_dict
+    gap_dict = find_coverage_gaps( segment_dict, ref_lengths )
+    print gap_dict
+    gap_dict = filter_gaps( gap_dict, nucmer_hits, query_lengths, margin=margin)
     print gap_dict
     calculate_coverage_fraction( gap_dict, ref_lengths )
+    #print locations
+
+def filter_gaps( gap_dict, nucmer_hits, query_lengths, margin=MARGIN ):
+    """
+    Remove locations that appear to correspond to end-of-contig trimmings
+    """
+    filtered_gaps = {}
+    for reference, gaps in gap_dict.iteritems():
+        filtered_gaps[reference] = []
+        for gap in gaps:
+            length = query_lengths[gap.source]
+            source = find_gap_source( gap, nucmer_hits )
+            if is_terminal_gap( source, length, margin ):
+                continue
+            filtered_gaps[reference].append( gap )
+    return filtered_gaps
+
+def find_gap_source( gap, nucmer_hits ):
+    start, end = None, None
+    for hit in nucmer_hits:
+        if gap.start == hit.E1+1:
+            start = hit.E2
+        if gap.end == hit.S1-1:
+            end = hit.S2
+    return sorted([start, end])
+
+def is_terminal_gap( source, length, margin=MARGIN ):
+    print source, length, margin
+    print source[0], margin
+    print source[1], length-margin
+    if source[0] <= margin and source[1] >= length-margin:
+        return True
+    return False
 
 def calculate_coverage_fraction( gap_dict, ref_lengths ):
     for reference, gaps in gap_dict.iteritems():
         length = float(ref_lengths[reference])
-        covered = [len(g) for g in gaps if g.source == 'covered']
         uncovered = [len(g) for g in gaps if g.source == 'uncovered']
+        covered = [len(g) for g in gaps if g.source != 'uncovered']
         total = covered + uncovered
         print "Covered Gaps: {0}bp ({1:.2%}) from {2} gaps".format(sum(covered),
                                                                    sum(covered)/length,
@@ -49,7 +90,7 @@ def find_coverage_gaps( segment_dict, lengths ):
         for segment in segments:
             if segment.start > prev_end + 1:
                 if segment.source and segment.source == prev_source:
-                    gap = Segment( prev_end+1, segment.start-1, 'covered' )
+                    gap = Segment( prev_end+1, segment.start-1, segment.source )
                 else:
                     gap = Segment( prev_end+1, segment.start-1, 'uncovered' )
                 gap_dict[reference].append( gap )
@@ -89,14 +130,15 @@ def combine_segments( segment_dict ):
         new_segment_dict[reference] = sorted(new_segments)
     return new_segment_dict
 
-
-
-def read_fasta_lengths( fasta_file ):
-    lengths = {}
-    for record in FastaReader( fasta_file ):
-        name = record.name.strip().split()[0]
-        lengths[name] = len( record.sequence )
-    return lengths
+def nucmer_hits_to_segments( nucmer_hits ):
+    segments = {}
+    for hit in nucmer_hits:
+        segment = Segment( hit.S1, hit.E1, hit.query )
+        try:
+            segments[hit.reference].append( segment )
+        except:
+            segments[hit.reference] = [ segment ]
+    return segments
 
 if __name__ == '__main__':
     import sys

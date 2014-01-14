@@ -7,9 +7,9 @@ from pbcore.io import (FastaRecord, FastaReader,
                        FastqRecord, FastqReader)
 from pbmgx.fasta.utils import write_records, is_fasta, is_fastq
 
-def trim_sequences( sequence_file ):
+def trim_sequences( sequence_file, output_file ):
     if is_fasta( sequence_file ):
-        trim_fasta( sequence_file )
+        trim_fasta( sequence_file, output_file )
     elif is_fastq( sequence_file ):
         trim_fastq( sequence_file )
     else:
@@ -18,12 +18,14 @@ def trim_sequences( sequence_file ):
 def trim_fastq( fastq_file ):
     records = list( FastqReader( fastq_file ))
     records = [trim_fastq_record(r) for r in records]
+    records = [r for r in records if len(r.sequence) > 0]
     write_records( records, fastq_file )
 
-def trim_fasta( fasta_file ):
+def trim_fasta( fasta_file, output_file ):
     records = list( FastaReader( fasta_file ))
     records = [trim_fasta_record(r) for r in records]
-    write_records( records, fasta_file )
+    records = [r for r in records if len(r.sequence) > 0]
+    write_records( records, output_file )
 
 def trim_fastq_record( record ):
     left_trimmed = re.sub('^[agct]+', '', record.sequence)
@@ -32,8 +34,6 @@ def trim_fastq_record( record ):
     right_trim = len(left_trimmed) - len(trimmed_seq)
     right_trim_start = len(record.sequence) - right_trim
     trimmed_qual = record.quality[left_trim:right_trim_start]
-    print len(trimmed_seq)
-    print len(trimmed_qual)
     return FastqRecord( record.name, trimmed_seq, trimmed_qual )
 
 def trim_fasta_record( record ):
@@ -45,5 +45,6 @@ if __name__ == '__main__':
     import sys
 
     sequence_file = sys.argv[1]
+    output_file = sys.argv[2] if len(sys.argv) > 2 else sequence_file
 
-    trim_sequences( sequence_file )
+    trim_sequences( sequence_file, output_file )

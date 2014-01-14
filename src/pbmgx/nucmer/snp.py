@@ -18,12 +18,27 @@ class NucmerSnp( object ):
             self.P2 = int(parts[3])
             self.BUFF = int(parts[4])
             self.DIST = int(parts[5])
+            self.reference_length = None
+            self.query_length = None
             self.reference = parts[8]
             self.query = parts[9]
+        elif len(parts) == 12:
+            self.P1 = int(parts[0])
+            self.S1 = parts[1]
+            self.S2 = parts[2]
+            self.P2 = int(parts[3])
+            self.BUFF = int(parts[4])
+            self.DIST = int(parts[5])
+            self.reference_length = int(parts[6])
+            self.query_length = int(parts[7])
+            self.reference = parts[10]
+            self.query = parts[11]
         else:
             raise ValueError("Invalid Nucmer SNP record")
 
-
+    def has_lengths(self):
+        return (self.reference_length is not None and
+                self.query_length is not None)
 
 class NucmerSnpReader( ReaderBase ):
     """

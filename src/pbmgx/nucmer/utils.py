@@ -13,6 +13,7 @@ def read_nucmer_hits( nucmer_file, min_length=None, min_identity=None):
         if min_identity and hit.IDY < min_identity:
             continue
         hits.append( hit )
+    return hits
 
 def read_nucmer_snps( nucmer_file ):
     snps = []

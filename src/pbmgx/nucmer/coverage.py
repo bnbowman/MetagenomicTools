@@ -18,17 +18,15 @@ def calculate_coverage( coord_file, query_fasta, ref_fasta, min_length=MIN_LEN,
     ref_lengths = read_fasta_lengths( ref_fasta )
     nucmer_hits = read_nucmer_hits( coord_file, min_length, min_identity )
     segment_dict = nucmer_hits_to_segments( nucmer_hits )
-    print segment_dict
     segment_dict = combine_segments( segment_dict )
-    print segment_dict
     gap_dict = find_coverage_gaps( segment_dict, ref_lengths )
     print gap_dict
-    gap_dict = filter_gaps( gap_dict, nucmer_hits, query_lengths, margin=margin)
+    gap_dict = mark_terminal_gaps( gap_dict, nucmer_hits, query_lengths, margin=margin)
     print gap_dict
     calculate_coverage_fraction( gap_dict, ref_lengths )
     #print locations
 
-def filter_gaps( gap_dict, nucmer_hits, query_lengths, margin=MARGIN ):
+def mark_terminal_gaps( gap_dict, nucmer_hits, query_lengths, margin=MARGIN ):
     """
     Remove locations that appear to correspond to end-of-contig trimmings
     """
@@ -39,7 +37,7 @@ def filter_gaps( gap_dict, nucmer_hits, query_lengths, margin=MARGIN ):
             length = query_lengths[gap.source]
             source = find_gap_source( gap, nucmer_hits )
             if is_terminal_gap( source, length, margin ):
-                continue
+                gap = Segment(gap.start, gap.end, 'uncovered')
             filtered_gaps[reference].append( gap )
     return filtered_gaps
 
@@ -53,9 +51,6 @@ def find_gap_source( gap, nucmer_hits ):
     return sorted([start, end])
 
 def is_terminal_gap( source, length, margin=MARGIN ):
-    print source, length, margin
-    print source[0], margin
-    print source[1], length-margin
     if source[0] <= margin and source[1] >= length-margin:
         return True
     return False
@@ -66,6 +61,7 @@ def calculate_coverage_fraction( gap_dict, ref_lengths ):
         uncovered = [len(g) for g in gaps if g.source == 'uncovered']
         covered = [len(g) for g in gaps if g.source != 'uncovered']
         total = covered + uncovered
+        print
         print "Covered Gaps: {0}bp ({1:.2%}) from {2} gaps".format(sum(covered),
                                                                    sum(covered)/length,
                                                                    len(covered))
